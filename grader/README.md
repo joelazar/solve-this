@@ -45,6 +45,7 @@ commit, and wall time.
 
 | template | mode |
 | --- | --- |
+| `grader/prompts/vague.md` | two sentences, no spec pointer, no rules, no count |
 | `grader/prompts/hunt.md` | find and fix everything, count unknown |
 | `grader/prompts/count.md` | states the exact count via `{{.N}}` |
 | `grader/prompts/report.md` | user-style bug reports via `{{.Symptoms}}` |
