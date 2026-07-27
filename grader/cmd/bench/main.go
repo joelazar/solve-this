@@ -75,7 +75,7 @@ func main() {
 	fmt.Printf("run dir  %s\nbugs     %d: %s\nprompt   %s\n", manifest.Dir, len(manifest.Bugs), strings.Join(manifest.Bugs, " "), promptFile)
 
 	if *agent == "" {
-		fmt.Printf("\n%s\nrun your agent in the run dir, then: go run ./cmd/score -id %s\n", prompt, *id)
+		fmt.Printf("\n%s\nrun your agent in the run dir, then: mise run score -- -id %s\n", prompt, *id)
 		return
 	}
 
