@@ -1,0 +1,35 @@
+[tools]
+go = "1.26.5"
+
+[tasks.api]
+description = "Run the baseline API on :8080"
+run = "go run ./app/cmd/api"
+
+[tasks.bench]
+description = "Plant bugs, run an agent, score it: mise run bench -- -id <run> -seed 42 -n 10 -mode hunt -agent '...'"
+run = "go run ./grader/cmd/bench"
+
+[tasks.score]
+description = "Score a run: mise run score -- -id <run>"
+run = "go run ./grader/cmd/score"
+
+[tasks.verify]
+description = "Prove every bug builds, stays vet-clean and fails exactly its own hidden test"
+run = "go run ./grader/cmd/verify"
+
+[tasks.patches]
+description = "Regenerate the human-readable bug patches into bugs/"
+run = "go run ./grader/cmd/genpatches"
+
+[tasks.check]
+description = "Format check, build and vet both modules"
+run = [
+  "test -z \"$(gofmt -l app grader)\" || { gofmt -l app grader; exit 1; }",
+  "go build ./app/... ./grader/...",
+  "go vet ./app/... ./grader/...",
+]
+
+[tasks.test]
+description = "Hidden tests against the working-tree baseline"
+dir = "grader"
+run = "SOLVE_THIS_DIR={{config_root}}/app go test -count=1 ./tests/..."
