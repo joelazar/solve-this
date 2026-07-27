@@ -22,14 +22,13 @@ import (
 )
 
 func main() {
-	home, _ := os.UserHomeDir()
 	root, err := run.Root()
 	if err != nil {
 		log.Fatal(err)
 	}
 	src := flag.String("src", root, "repository holding the app/ baseline")
 	rev := flag.String("rev", "HEAD", "baseline revision")
-	out := flag.String("out", filepath.Join(home, "Code/joelazar/solve-this-runs"), "directory holding run trees")
+	out := flag.String("out", filepath.Join(filepath.Dir(root), "solve-this-runs"), "directory holding run trees, kept outside the repository")
 	manifests := flag.String("manifests", filepath.Join(root, "runs"), "directory holding run artifacts")
 	grader := flag.String("grader", filepath.Join(root, "grader"), "directory holding the hidden tests")
 	id := flag.String("id", "", "run id, defaults to a timestamp")
