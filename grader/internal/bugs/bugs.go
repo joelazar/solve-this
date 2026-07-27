@@ -7,13 +7,14 @@ type Edit struct {
 }
 
 type Bug struct {
-	ID      string
-	Tier    int
-	Class   string
-	Spec    string
-	Symptom string
-	Test    string
-	Edits   []Edit
+	ID       string
+	Tier     int
+	Class    string
+	Spec     string
+	Symptom  string
+	Test     string
+	TripsVet bool
+	Edits    []Edit
 }
 
 type Decoy struct {
@@ -337,6 +338,96 @@ var All = []Bug{
 				New: `		task.Done = req.Done`,
 			},
 		},
+	},
+	{
+		ID:      "t3-race-request-id",
+		Tier:    3,
+		Class:   "unsynchronized shared counter",
+		Spec:    "every response carries its own X-Request-Id header",
+		Symptom: "Under concurrent load some responses share the same X-Request-Id.",
+		Test:    "TestT3RaceRequestID",
+		Edits: []Edit{
+			{
+				File: "internal/api/middleware.go",
+				Old: `	"strconv"
+	"sync/atomic"
+	"time"`,
+				New: `	"strconv"
+	"time"`,
+			},
+			{
+				File: "internal/api/middleware.go",
+				Old: `var requestCounter atomic.Uint64
+
+func requestID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := "req-" + strconv.FormatUint(requestCounter.Add(1), 10)`,
+				New: `var requestCounter uint64
+
+func requestID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCounter++
+		id := "req-" + strconv.FormatUint(requestCounter, 10)`,
+			},
+		},
+	},
+	{
+		ID:      "t3-race-tasks",
+		Tier:    3,
+		Class:   "shared state read without the lock",
+		Spec:    "GET /tasks returns a consistent snapshot while other requests mutate the store",
+		Symptom: "Under load, GET /tasks sometimes returns corrupted results or crashes.",
+		Test:    "TestT3RaceTasks",
+		Edits: []Edit{{
+			File: "internal/store/store.go",
+			Old: `func (s *Store) Tasks() []domain.Task {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	tasks := make([]domain.Task, len(s.tasks.rows))`,
+			New: `func (s *Store) Tasks() []domain.Task {
+	tasks := make([]domain.Task, len(s.tasks.rows))`,
+		}},
+	},
+	{
+		ID:       "t3-mutex-copy",
+		Tier:     3,
+		Class:    "mutex locked on a copy of the receiver",
+		Spec:     "bulk complete mutates the store under mutual exclusion; go vet is clean",
+		Symptom:  "go vet fails on the store package, and bulk completes corrupt data under load.",
+		Test:     "TestT3MutexCopy",
+		TripsVet: true,
+		Edits: []Edit{{
+			File: "internal/store/store.go",
+			Old:  `func (s *Store) CompleteAll(`,
+			New:  `func (s Store) CompleteAll(`,
+		}},
+	},
+	{
+		ID:      "t3-deadlock-delete",
+		Tier:    3,
+		Class:   "lock not released on the error path",
+		Spec:    "deleting an unknown task returns 404 and the API keeps serving",
+		Symptom: "After a DELETE of a task id that does not exist, the whole API stops responding.",
+		Test:    "TestT3DeadlockDelete",
+		Edits: []Edit{{
+			File: "internal/store/store.go",
+			Old: `func (s *Store) DeleteTask(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.tasks.remove(id) {
+		return fmt.Errorf("task %s: %w", id, ErrNotFound)
+	}
+	return nil
+}`,
+			New: `func (s *Store) DeleteTask(id string) error {
+	s.mu.Lock()
+	if !s.tasks.remove(id) {
+		return fmt.Errorf("task %s: %w", id, ErrNotFound)
+	}
+	s.mu.Unlock()
+	return nil
+}`,
+		}},
 	},
 }
 

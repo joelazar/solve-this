@@ -86,10 +86,16 @@ func check(grader, src, revision, work, name string, selected []bugs.Bug) int {
 	sort.Strings(unexpected)
 	sort.Strings(missing)
 
+	wantVet := true
+	for _, bug := range selected {
+		if bug.TripsVet {
+			wantVet = false
+		}
+	}
 	status := "ok"
 	problems := 0
-	if !report.Build || !report.Vet {
-		status = fmt.Sprintf("build %v vet %v", report.Build, report.Vet)
+	if !report.Build || report.Vet != wantVet {
+		status = fmt.Sprintf("build %v vet %v (want vet %v)", report.Build, report.Vet, wantVet)
 		problems++
 	}
 	if len(unexpected) > 0 {

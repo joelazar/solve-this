@@ -4,11 +4,19 @@ Plants bugs into [app](../app) and scores agent runs against hidden tests. Every
 below runs from the repository root; run trees are created outside the repository so
 agents never see this directory.
 
-`grader/internal/bugs/bugs.go` is the answer key: 15 bugs as exact text replacements against the
+`grader/internal/bugs/bugs.go` is the answer key: 19 bugs as exact text replacements against the
 clean baseline, each tied to the spec sentence it breaks and the hidden test that covers
 it. Two decoys (weird-looking but correct code baked into the baseline) are listed there
 too. Tests in `tests/` are black-box HTTP checks against the built binary; the
 `TestRegression*` tests guard behavior no bug touches.
+
+Tier 3 is opt-in via `-tiers` and covers concurrency: two data races, a mutex copied by a
+value receiver, and a lock leaked on an error path. Random selection defaults to tiers 1
+and 2, so existing runs are unaffected; `-tiers 1,2,3 -n 19` plants everything. The race
+tests hammer a `-race` build of the binary and grep its log for reports naming the buggy
+site, so they reward agents who run the race detector under load rather than only reading
+code. `t3-mutex-copy` is the one bug that is not vet-clean: `go vet` flags the copied
+lock, and `verify` expects exactly that.
 
 ## Workflow
 
@@ -56,7 +64,7 @@ They are Go templates rendered against the planted set; edit them freely or pass
 ## Maintenance
 
 ```sh
-go run ./grader/cmd/verify       # every bug in isolation: builds, vet-clean, fails exactly its own test
+go run ./grader/cmd/verify       # every bug in isolation: builds, fails exactly its own test, vet-clean except t3-mutex-copy
 go run ./grader/cmd/genpatches   # human-readable diffs in bugs/
 ```
 

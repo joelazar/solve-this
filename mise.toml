@@ -14,7 +14,7 @@ description = "Score a run: mise run score -- -id <run>"
 run = "go run ./grader/cmd/score"
 
 [tasks.verify]
-description = "Prove every bug builds, stays vet-clean and fails exactly its own hidden test"
+description = "Prove every bug in isolation builds and fails exactly its own hidden test"
 run = "go run ./grader/cmd/verify"
 
 [tasks.patches]

@@ -20,6 +20,7 @@ type Options struct {
 	ID        string
 	Seed      int64
 	N         int
+	Tiers     []int
 	IDs       []string
 }
 
@@ -29,7 +30,7 @@ func Create(o Options) (run.Manifest, error) {
 		return run.Manifest{}, fmt.Errorf("%s already exists", dir)
 	}
 
-	selected := bugs.Select(o.Seed, o.N)
+	selected := bugs.Select(o.Seed, o.N, o.Tiers)
 	if len(o.IDs) > 0 {
 		selected = nil
 		for _, want := range o.IDs {

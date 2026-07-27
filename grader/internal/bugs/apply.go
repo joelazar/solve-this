@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -41,9 +42,13 @@ func Files(selected []Bug) []string {
 	return files
 }
 
-func Select(seed int64, n int) []Bug {
-	shuffled := make([]Bug, len(All))
-	copy(shuffled, All)
+func Select(seed int64, n int, tiers []int) []Bug {
+	shuffled := make([]Bug, 0, len(All))
+	for _, bug := range All {
+		if len(tiers) == 0 || slices.Contains(tiers, bug.Tier) {
+			shuffled = append(shuffled, bug)
+		}
+	}
 	rng := rand.New(rand.NewSource(seed))
 	rng.Shuffle(len(shuffled), func(i, j int) {
 		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]

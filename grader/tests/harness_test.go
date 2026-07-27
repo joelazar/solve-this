@@ -12,11 +12,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
-var binary string
+var (
+	binary     string
+	binaryRace string
+)
 
 func TestMain(m *testing.M) {
 	dir := os.Getenv("SOLVE_THIS_DIR")
@@ -30,25 +34,57 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 	binary = filepath.Join(work, "api")
-	build := exec.Command("go", "build", "-o", binary, "./cmd/api")
-	build.Dir = dir
-	build.Stdout = os.Stderr
-	build.Stderr = os.Stderr
-	if err := build.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "build failed: %v\n", err)
-		os.Exit(1)
+	binaryRace = filepath.Join(work, "api-race")
+	for out, extra := range map[string][]string{binary: nil, binaryRace: {"-race"}} {
+		args := append(append([]string{"build"}, extra...), "-o", out, "./cmd/api")
+		build := exec.Command("go", args...)
+		build.Dir = dir
+		build.Stdout = os.Stderr
+		build.Stderr = os.Stderr
+		if err := build.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "build failed: %v\n", err)
+			os.Exit(1)
+		}
 	}
 	code := m.Run()
 	os.RemoveAll(work)
 	os.Exit(code)
 }
 
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
 type server struct {
-	t   *testing.T
-	url string
+	t    *testing.T
+	url  string
+	logs *syncBuffer
 }
 
 func start(t *testing.T) *server {
+	t.Helper()
+	return launch(t, binary)
+}
+
+func startRace(t *testing.T) *server {
+	t.Helper()
+	return launch(t, binaryRace)
+}
+
+func launch(t *testing.T, bin string) *server {
 	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -57,10 +93,10 @@ func start(t *testing.T) *server {
 	port := listener.Addr().(*net.TCPAddr).Port
 	listener.Close()
 
-	cmd := exec.Command(binary, "-addr", fmt.Sprintf("127.0.0.1:%d", port))
-	var logs bytes.Buffer
-	cmd.Stdout = &logs
-	cmd.Stderr = &logs
+	cmd := exec.Command(bin, "-addr", fmt.Sprintf("127.0.0.1:%d", port))
+	logs := &syncBuffer{}
+	cmd.Stdout = logs
+	cmd.Stderr = logs
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +108,7 @@ func start(t *testing.T) *server {
 		}
 	})
 
-	s := &server{t: t, url: fmt.Sprintf("http://127.0.0.1:%d", port)}
+	s := &server{t: t, url: fmt.Sprintf("http://127.0.0.1:%d", port), logs: logs}
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
 		conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", port), 100*time.Millisecond)
@@ -84,6 +120,45 @@ func start(t *testing.T) *server {
 	}
 	t.Fatal("server did not start")
 	return nil
+}
+
+var loadClient = &http.Client{Timeout: 5 * time.Second}
+
+func (s *server) hit(method, path, body string) {
+	var reader io.Reader
+	if body != "" {
+		reader = strings.NewReader(body)
+	}
+	req, err := http.NewRequest(method, s.url+path, reader)
+	if err != nil {
+		return
+	}
+	resp, err := loadClient.Do(req)
+	if err != nil {
+		return
+	}
+	io.Copy(io.Discard, resp.Body)
+	resp.Body.Close()
+}
+
+func hammer(s *server, workers, iters int, do func(worker, i int)) {
+	var wg sync.WaitGroup
+	for worker := range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range iters {
+				do(worker, i)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func (s *server) raceReport(symbol string) bool {
+	time.Sleep(300 * time.Millisecond)
+	log := s.logs.String()
+	return strings.Contains(log, "WARNING: DATA RACE") && strings.Contains(log, symbol)
 }
 
 func (s *server) raw(method, path, body string) (int, []byte) {

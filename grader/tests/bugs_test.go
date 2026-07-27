@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestT1RangeCopy(t *testing.T) {
@@ -207,6 +209,65 @@ func TestT2PatchZeroing(t *testing.T) {
 	if !boolean(t, task, "done") {
 		t.Fatal("patching the title cleared done")
 	}
+}
+
+func TestT3RaceRequestID(t *testing.T) {
+	s := startRace(t)
+
+	hammer(s, 20, 25, func(worker, i int) {
+		s.hit(http.MethodGet, "/health", "")
+	})
+	if s.raceReport("requestID") {
+		t.Fatal("data race on the request id counter")
+	}
+}
+
+func TestT3RaceTasks(t *testing.T) {
+	s := startRace(t)
+	list := s.list("Home")
+
+	hammer(s, 20, 25, func(worker, i int) {
+		if worker%2 == 0 {
+			s.hit(http.MethodGet, "/tasks", "")
+			return
+		}
+		s.hit(http.MethodPost, "/lists/"+list+"/tasks", fmt.Sprintf(`{"title":"t%d-%d"}`, worker, i))
+	})
+	if s.raceReport("store.(*Store).Tasks") {
+		t.Fatal("data race reading tasks without the lock")
+	}
+}
+
+func TestT3MutexCopy(t *testing.T) {
+	s := startRace(t)
+	list := s.list("Home")
+	ids := make([]string, 8)
+	for i := range ids {
+		ids[i] = fmt.Sprintf("%q", s.titled(list, fmt.Sprintf("task %d", i)))
+	}
+	body := fmt.Sprintf(`{"ids":[%s]}`, strings.Join(ids, ","))
+
+	hammer(s, 20, 25, func(worker, i int) {
+		s.hit(http.MethodPost, "/tasks/bulk/complete", body)
+	})
+	if s.raceReport("store.Store.CompleteAll") {
+		t.Fatal("CompleteAll locks a copy of the store")
+	}
+}
+
+func TestT3DeadlockDelete(t *testing.T) {
+	s := start(t)
+	list := s.list("Home")
+	s.titled(list, "one")
+
+	s.hit(http.MethodDelete, "/tasks/task_9999", "")
+
+	client := &http.Client{Timeout: 3 * time.Second}
+	resp, err := client.Get(s.url + "/lists")
+	if err != nil {
+		t.Fatalf("GET /lists after deleting an unknown task: %v", err)
+	}
+	resp.Body.Close()
 }
 
 func TestDecoyCompletionPercentFloor(t *testing.T) {

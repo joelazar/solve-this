@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"text/template"
 	"time"
@@ -35,6 +36,7 @@ func main() {
 	selection := flag.String("bugs", "", "comma separated bug ids, empty means random")
 	n := flag.Int("n", len(bugs.All), "number of bugs when selecting randomly")
 	seed := flag.Int64("seed", time.Now().UnixNano(), "selection seed")
+	tiersFlag := flag.String("tiers", "1,2", "comma separated tiers for random selection, ignored with -bugs")
 	mode := flag.String("mode", "hunt", "prompt template in prompts/: hunt, count or report")
 	promptPath := flag.String("prompt", "", "custom prompt template, overrides -mode")
 	agent := flag.String("agent", "", "agent command, run through sh -c inside the run directory; empty prints the prompt for a manual session")
@@ -48,9 +50,17 @@ func main() {
 	if *selection != "" {
 		ids = strings.Split(*selection, ",")
 	}
+	var tiers []int
+	for _, part := range strings.Split(*tiersFlag, ",") {
+		tier, err := strconv.Atoi(strings.TrimSpace(part))
+		if err != nil {
+			log.Fatalf("invalid -tiers value %q", *tiersFlag)
+		}
+		tiers = append(tiers, tier)
+	}
 	manifest, err := variant.Create(variant.Options{
 		Src: *src, Rev: *rev, Out: *out, Manifests: *manifests,
-		ID: *id, Seed: *seed, N: *n, IDs: ids,
+		ID: *id, Seed: *seed, N: *n, Tiers: tiers, IDs: ids,
 	})
 	if err != nil {
 		log.Fatal(err)
