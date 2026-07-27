@@ -14,19 +14,23 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/joelazar/solve-this-grader/internal/bugs"
-	"github.com/joelazar/solve-this-grader/internal/run"
-	"github.com/joelazar/solve-this-grader/internal/score"
-	"github.com/joelazar/solve-this-grader/internal/variant"
+	"github.com/joelazar/solve-this/grader/internal/bugs"
+	"github.com/joelazar/solve-this/grader/internal/run"
+	"github.com/joelazar/solve-this/grader/internal/score"
+	"github.com/joelazar/solve-this/grader/internal/variant"
 )
 
 func main() {
 	home, _ := os.UserHomeDir()
-	src := flag.String("src", filepath.Join(home, "Code/joelazar/solve-this"), "baseline repository")
+	root, err := run.Root()
+	if err != nil {
+		log.Fatal(err)
+	}
+	src := flag.String("src", root, "repository holding the app/ baseline")
 	rev := flag.String("rev", "HEAD", "baseline revision")
 	out := flag.String("out", filepath.Join(home, "Code/joelazar/solve-this-runs"), "directory holding run trees")
-	manifests := flag.String("manifests", "runs", "directory holding run artifacts")
-	grader := flag.String("grader", ".", "grader repository holding the hidden tests")
+	manifests := flag.String("manifests", filepath.Join(root, "runs"), "directory holding run artifacts")
+	grader := flag.String("grader", filepath.Join(root, "grader"), "directory holding the hidden tests")
 	id := flag.String("id", "", "run id, defaults to a timestamp")
 	selection := flag.String("bugs", "", "comma separated bug ids, empty means random")
 	n := flag.Int("n", len(bugs.All), "number of bugs when selecting randomly")
@@ -54,7 +58,7 @@ func main() {
 
 	tmpl := *promptPath
 	if tmpl == "" {
-		tmpl = filepath.Join("prompts", *mode+".md")
+		tmpl = filepath.Join(*grader, "prompts", *mode+".md")
 	}
 	prompt, err := render(tmpl, manifest)
 	if err != nil {

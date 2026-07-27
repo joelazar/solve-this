@@ -18,11 +18,15 @@ type Manifest struct {
 	Bugs     []string `json:"bugs"`
 }
 
+func Root() (string, error) {
+	return Git(".", "rev-parse", "--show-toplevel")
+}
+
 func Export(src, revision, dir string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	archive := exec.Command("git", "-C", src, "archive", revision)
+	archive := exec.Command("git", "-C", src, "archive", revision+":app")
 	extract := exec.Command("tar", "-x", "-C", dir)
 	pipe, err := archive.StdoutPipe()
 	if err != nil {

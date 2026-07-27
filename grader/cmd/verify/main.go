@@ -8,15 +8,18 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/joelazar/solve-this-grader/internal/bugs"
-	"github.com/joelazar/solve-this-grader/internal/run"
-	"github.com/joelazar/solve-this-grader/internal/score"
+	"github.com/joelazar/solve-this/grader/internal/bugs"
+	"github.com/joelazar/solve-this/grader/internal/run"
+	"github.com/joelazar/solve-this/grader/internal/score"
 )
 
 func main() {
-	home, _ := os.UserHomeDir()
-	grader := flag.String("grader", ".", "grader repository holding the hidden tests")
-	src := flag.String("src", filepath.Join(home, "Code/joelazar/solve-this"), "baseline repository")
+	root, err := run.Root()
+	if err != nil {
+		log.Fatal(err)
+	}
+	grader := flag.String("grader", filepath.Join(root, "grader"), "directory holding the hidden tests")
+	src := flag.String("src", root, "repository holding the app/ baseline")
 	rev := flag.String("rev", "HEAD", "baseline revision")
 	flag.Parse()
 

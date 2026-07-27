@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/joelazar/solve-this-grader/internal/bugs"
-	"github.com/joelazar/solve-this-grader/internal/run"
+	"github.com/joelazar/solve-this/grader/internal/bugs"
+	"github.com/joelazar/solve-this/grader/internal/run"
 )
 
 type Options struct {

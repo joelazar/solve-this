@@ -8,13 +8,17 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/joelazar/solve-this-grader/internal/run"
-	"github.com/joelazar/solve-this-grader/internal/score"
+	"github.com/joelazar/solve-this/grader/internal/run"
+	"github.com/joelazar/solve-this/grader/internal/score"
 )
 
 func main() {
-	grader := flag.String("grader", ".", "grader repository holding the hidden tests")
-	manifests := flag.String("manifests", "runs", "directory holding run manifests")
+	root, err := run.Root()
+	if err != nil {
+		log.Fatal(err)
+	}
+	grader := flag.String("grader", filepath.Join(root, "grader"), "directory holding the hidden tests")
+	manifests := flag.String("manifests", filepath.Join(root, "runs"), "directory holding run manifests")
 	id := flag.String("id", "", "run id")
 	flag.Parse()
 

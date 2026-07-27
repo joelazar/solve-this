@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/joelazar/solve-this-grader/internal/bugs"
-	"github.com/joelazar/solve-this-grader/internal/run"
+	"github.com/joelazar/solve-this/grader/internal/bugs"
+	"github.com/joelazar/solve-this/grader/internal/run"
 )
 
 type Report struct {

@@ -7,15 +7,18 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/joelazar/solve-this-grader/internal/bugs"
-	"github.com/joelazar/solve-this-grader/internal/run"
+	"github.com/joelazar/solve-this/grader/internal/bugs"
+	"github.com/joelazar/solve-this/grader/internal/run"
 )
 
 func main() {
-	home, _ := os.UserHomeDir()
-	src := flag.String("src", filepath.Join(home, "Code/joelazar/solve-this"), "baseline repository")
+	root, err := run.Root()
+	if err != nil {
+		log.Fatal(err)
+	}
+	src := flag.String("src", root, "repository holding the app/ baseline")
 	rev := flag.String("rev", "HEAD", "baseline revision")
-	out := flag.String("out", "bugs", "directory for generated patches")
+	out := flag.String("out", filepath.Join(root, "bugs"), "directory for generated patches")
 	flag.Parse()
 
 	work, err := os.MkdirTemp("", "solve-this-patches")
