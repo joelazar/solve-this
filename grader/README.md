@@ -10,13 +10,28 @@ it. Two decoys (weird-looking but correct code baked into the baseline) are list
 too. Tests in `tests/` are black-box HTTP checks against the built binary; the
 `TestRegression*` tests guard behavior no bug touches.
 
-Tier 3 is opt-in via `-tiers` and covers concurrency: two data races, a mutex copied by a
-value receiver, and a lock leaked on an error path. Random selection defaults to tiers 1
-and 2, so existing runs are unaffected; `-tiers 1,2,3 -n 19` plants everything. The race
-tests hammer a `-race` build of the binary and grep its log for reports naming the buggy
-site, so they reward agents who run the race detector under load rather than only reading
-code. `t3-mutex-copy` is the one bug that is not vet-clean: `go vet` flags the copied
-lock, and `verify` expects exactly that.
+## Bug tiers
+
+Every bug is explained one by one, with code, in the [bug catalog](docs/bugs/README.md).
+The tiers grade how much work detection takes:
+
+- Tier 1 (6 bugs): mechanical Go mistakes, like a write to a nil map or a discarded
+  `Atoi` error. One request against the right endpoint exposes each of them, so these
+  mostly measure whether an agent exercises the API at all.
+- Tier 2 (9 bugs): semantic traps. The code compiles, often works for the common case,
+  and reads plausibly; the defect only shows against the spec in `docs/api.md`. A
+  wrapped error compared with `==`, or a PATCH that zeroes a field the request never
+  mentioned.
+- Tier 3 (4 bugs): concurrency. Correct on every single request, broken under load: two
+  data races, a mutex locked on a copy of its struct, and a lock leaked on an error
+  path that freezes the whole API. The hidden tests hammer a `-race` build and grep its
+  log for reports naming the buggy site, so they reward agents who run `go vet` and the
+  race detector instead of only reading code. `t3-mutex-copy` is the one bug that is
+  not vet-clean; `verify` expects vet to fail on exactly that variant.
+
+Random selection defaults to tiers 1 and 2, so tier 3 is opt-in via `-tiers`:
+`-tiers 1,2,3 -n 19` plants everything, and an explicit `-bugs` list bypasses the tier
+filter entirely.
 
 ## Workflow
 
