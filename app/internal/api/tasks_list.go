@@ -45,11 +45,11 @@ func (h *Handler) getTasks(w http.ResponseWriter, r *http.Request) {
 		Search: values.Get("q"),
 	}
 	if raw := values.Get("done"); raw != "" {
-		done, err := strconv.ParseBool(raw)
-		if err != nil {
+		if raw != "true" && raw != "false" {
 			writeError(w, http.StatusBadRequest, "done must be true or false")
 			return
 		}
+		done := raw == "true"
 		query.Done = &done
 	}
 

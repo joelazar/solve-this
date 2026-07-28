@@ -44,8 +44,8 @@ func ValidateTask(t Task) error {
 		fields = append(fields, FieldError{Field: "priority", Message: "must be one of high, medium, low"})
 	}
 	for tag := range t.Tags {
-		if len(tag) > MaxTagLen {
-			fields = append(fields, FieldError{Field: "tags", Message: fmt.Sprintf("must be at most %d characters", MaxTagLen)})
+		if message := tagProblem(tag); message != "" {
+			fields = append(fields, FieldError{Field: "tags", Message: message})
 			break
 		}
 	}
@@ -55,18 +55,21 @@ func ValidateTask(t Task) error {
 	return &ValidationError{Fields: fields}
 }
 
-func ValidateTag(tag string) error {
-	var fields []FieldError
+func tagProblem(tag string) string {
 	switch {
 	case tag == "":
-		fields = append(fields, FieldError{Field: "tag", Message: "must not be empty"})
+		return "must not be empty"
 	case len(tag) > MaxTagLen:
-		fields = append(fields, FieldError{Field: "tag", Message: fmt.Sprintf("must be at most %d characters", MaxTagLen)})
+		return fmt.Sprintf("must be at most %d characters", MaxTagLen)
 	}
-	if len(fields) == 0 {
-		return nil
+	return ""
+}
+
+func ValidateTag(tag string) error {
+	if message := tagProblem(tag); message != "" {
+		return &ValidationError{Fields: []FieldError{{Field: "tag", Message: message}}}
 	}
-	return &ValidationError{Fields: fields}
+	return nil
 }
 
 func ValidateListName(name string) *ValidationError {

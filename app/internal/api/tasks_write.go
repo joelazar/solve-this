@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -177,17 +178,14 @@ func (h *Handler) addTag(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) removeTag(w http.ResponseWriter, r *http.Request) {
 	tag := domain.NormalizeTag(r.PathValue("tag"))
-	var removed bool
 	task, err := h.store.UpdateTask(r.PathValue("id"), func(task *domain.Task) error {
-		removed = task.RemoveTag(tag)
+		if !task.RemoveTag(tag) {
+			return fmt.Errorf("tag %s: %w", tag, store.ErrNotFound)
+		}
 		return nil
 	})
 	if err != nil {
 		failed(w, err)
-		return
-	}
-	if !removed {
-		writeError(w, http.StatusNotFound, "tag "+tag+" not found")
 		return
 	}
 	writeJSON(w, http.StatusOK, taskToDTO(task))

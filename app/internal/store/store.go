@@ -141,12 +141,16 @@ func (s *Store) DeleteTask(id string) error {
 func (s *Store) CompleteAll(ids []string) ([]domain.Task, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	completed := make([]domain.Task, 0, len(ids))
+	rows := make([]int, 0, len(ids))
 	for _, id := range ids {
 		i, ok := s.tasks.at(id)
 		if !ok {
 			return nil, fmt.Errorf("task %s: %w", id, ErrNotFound)
 		}
+		rows = append(rows, i)
+	}
+	completed := make([]domain.Task, 0, len(rows))
+	for _, i := range rows {
 		s.tasks.rows[i].Done = true
 		s.tasks.rows[i].Touch()
 		completed = append(completed, s.tasks.rows[i].Clone())

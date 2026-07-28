@@ -13,9 +13,6 @@ func NormalizeTags(tags []string) []string {
 	out := make([]string, 0, len(tags))
 	for _, tag := range tags {
 		normalized := NormalizeTag(tag)
-		if normalized == "" {
-			continue
-		}
 		if _, ok := seen[normalized]; ok {
 			continue
 		}

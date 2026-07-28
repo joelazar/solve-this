@@ -172,9 +172,8 @@ Body `{"ids": ["task_0001", "task_0002"]}`. Marks every listed task as done and 
 the change, so a later `GET /tasks/{id}` reports `done: true`. The list must not be empty.
 If any id is unknown the request fails with `404` and no task is modified.
 
-```json
-{ "completed": 2, "items": [] }
-```
+Returns `200` with `{"completed": 2, "items": [...]}`. `completed` counts the ids and
+`items` holds the updated tasks, one entry per id, in the order the ids were given.
 
 ## Reports
 
