@@ -7,11 +7,8 @@ The planted `ValidateTag` funnels its result through a typed pointer:
 ```go
 func ValidateTag(tag string) error {
 	var invalid *ValidationError
-	switch {
-	case tag == "":
-		invalid = &ValidationError{...}
-	case len(tag) > MaxTagLen:
-		invalid = &ValidationError{...}
+	if message := tagProblem(tag); message != "" {
+		invalid = &ValidationError{Fields: []FieldError{{Field: "tag", Message: message}}}
 	}
 	return invalid
 }
@@ -25,11 +22,15 @@ answers 500 for perfectly good tags.
 The baseline returns a literal `nil` when there is nothing to report:
 
 ```go
-if len(fields) == 0 {
-	return nil
+if message := tagProblem(tag); message != "" {
+	return &ValidationError{Fields: []FieldError{{Field: "tag", Message: message}}}
 }
-return &ValidationError{Fields: fields}
+return nil
 ```
+
+Only the tag endpoint goes through `ValidateTag`; the tags of a whole task are checked by
+`ValidateTask` against the same `tagProblem`, so this bug cannot be mistaken for the
+validation of `POST /lists/{id}/tasks`.
 
 Note the decoy: `ValidateListName` has the same shape but declares its return type as
 `*ValidationError`, so no interface boxing happens and the nil check works. See

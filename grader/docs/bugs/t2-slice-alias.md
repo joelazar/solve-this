@@ -29,5 +29,12 @@ for i, task := range s.tasks.rows {
 return tasks
 ```
 
+The test pins what the spec pins: the sorted page comes back sorted, ids keep resolving to
+their own task, and the CSV export still lists the creation order. A shallow
+`copy(tasks, s.tasks.rows)` satisfies all three and counts as fixed. It leaves the tag
+maps shared with the stored rows, which is invisible from outside because nothing mutates
+the tasks handed out by `Tasks`: every write path clones the row first. The baseline clones
+anyway, so the shape of the fix stays a matter of taste and not of score.
+
 The spec sentence it breaks: the stored order of tasks is their creation order and no
 request can change it.

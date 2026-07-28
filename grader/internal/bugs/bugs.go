@@ -38,42 +38,25 @@ var Decoys = []Decoy{
 
 var All = []Bug{
 	{
-		ID:      "t1-range-copy",
+		ID:      "t1-row-copy",
 		Tier:    1,
-		Class:   "range over values mutates a copy",
+		Class:   "a copy of the stored row is mutated",
 		Spec:    "bulk complete persists, a later GET reports done: true",
 		Symptom: "POST /tasks/bulk/complete reports the tasks as completed, but fetching them afterwards still shows done: false.",
-		Test:    "TestT1RangeCopy",
+		Test:    "TestT1RowCopy",
 		Edits: []Edit{{
 			File: "internal/store/store.go",
-			Old: `	completed := make([]domain.Task, 0, len(ids))
-	for _, id := range ids {
-		i, ok := s.tasks.at(id)
-		if !ok {
-			return nil, fmt.Errorf("task %s: %w", id, ErrNotFound)
-		}
+			Old: `	for _, i := range rows {
 		s.tasks.rows[i].Done = true
 		s.tasks.rows[i].Touch()
 		completed = append(completed, s.tasks.rows[i].Clone())
-	}
-	return completed, nil`,
-			New: `	wanted := make(map[string]struct{}, len(ids))
-	for _, id := range ids {
-		if _, ok := s.tasks.at(id); !ok {
-			return nil, fmt.Errorf("task %s: %w", id, ErrNotFound)
-		}
-		wanted[id] = struct{}{}
-	}
-	completed := make([]domain.Task, 0, len(ids))
-	for _, task := range s.tasks.rows {
-		if _, ok := wanted[task.ID]; !ok {
-			continue
-		}
+	}`,
+			New: `	for _, i := range rows {
+		task := s.tasks.rows[i]
 		task.Done = true
 		task.Touch()
 		completed = append(completed, task.Clone())
-	}
-	return completed, nil`,
+	}`,
 		}},
 	},
 	{
@@ -176,25 +159,15 @@ var All = []Bug{
 		Edits: []Edit{{
 			File: "internal/domain/validate.go",
 			Old: `func ValidateTag(tag string) error {
-	var fields []FieldError
-	switch {
-	case tag == "":
-		fields = append(fields, FieldError{Field: "tag", Message: "must not be empty"})
-	case len(tag) > MaxTagLen:
-		fields = append(fields, FieldError{Field: "tag", Message: fmt.Sprintf("must be at most %d characters", MaxTagLen)})
+	if message := tagProblem(tag); message != "" {
+		return &ValidationError{Fields: []FieldError{{Field: "tag", Message: message}}}
 	}
-	if len(fields) == 0 {
-		return nil
-	}
-	return &ValidationError{Fields: fields}
+	return nil
 }`,
 			New: `func ValidateTag(tag string) error {
 	var invalid *ValidationError
-	switch {
-	case tag == "":
-		invalid = &ValidationError{Fields: []FieldError{{Field: "tag", Message: "must not be empty"}}}
-	case len(tag) > MaxTagLen:
-		invalid = &ValidationError{Fields: []FieldError{{Field: "tag", Message: fmt.Sprintf("must be at most %d characters", MaxTagLen)}}}
+	if message := tagProblem(tag); message != "" {
+		invalid = &ValidationError{Fields: []FieldError{{Field: "tag", Message: message}}}
 	}
 	return invalid
 }`,

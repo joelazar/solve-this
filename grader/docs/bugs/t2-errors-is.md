@@ -25,4 +25,9 @@ The baseline unwraps:
 case errors.Is(err, store.ErrNotFound):
 ```
 
+This is the only bug that owns the not-found status. Every handler reports through
+`failed`, so with this bug planted unknown lists, tasks and tags all answer 500. Tests
+for the other bugs on those paths assert "not a success" instead of the exact code, and
+`TestT2ErrorsIs` is what pins 404.
+
 The spec sentence it breaks: an unknown task id is 404.

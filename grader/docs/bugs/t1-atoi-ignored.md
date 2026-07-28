@@ -18,6 +18,10 @@ if perPage > maxPerPage {
 The only guard left caps the upper bound, so zero sails through and later blows up the
 `total_pages` division by `result.Size`. The client sees a 500.
 
+The test probes `abc`, `0`, `-1` and `101`: the discarded error covers the first, the
+missing lower bound the next two, and the silent cap the last one. A fix that only
+returns 400 for garbage input and keeps clamping the range does not pass.
+
 The baseline validates and rejects:
 
 ```go

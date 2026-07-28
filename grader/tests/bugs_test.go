@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TestT1RangeCopy(t *testing.T) {
+func TestT1RowCopy(t *testing.T) {
 	s := start(t)
 	list := s.list("Home")
 	first := s.titled(list, "one")
@@ -46,9 +46,11 @@ func TestT1AtoiIgnored(t *testing.T) {
 	s := start(t)
 	s.list("Home")
 
-	status, body := s.call(http.MethodGet, "/tasks?per_page=abc", "")
-	if status != http.StatusBadRequest {
-		t.Fatalf("per_page=abc: %d %v", status, body)
+	for _, raw := range []string{"abc", "0", "-1", "101"} {
+		status, body := s.call(http.MethodGet, "/tasks?per_page="+raw, "")
+		if status != http.StatusBadRequest {
+			t.Errorf("per_page=%s: %d %v", raw, status, body)
+		}
 	}
 }
 
@@ -115,11 +117,17 @@ func TestT2TypedNil(t *testing.T) {
 
 func TestT2ErrShadow(t *testing.T) {
 	s := start(t)
-	s.list("Home")
+	list := s.list("Home")
 
 	status, body := s.call(http.MethodDelete, "/lists/list_9999", "")
 	if status < 400 {
 		t.Fatalf("deleting an unknown list reported success: %d %v", status, body)
+	}
+	if status, body := s.call(http.MethodDelete, "/lists/"+list, ""); status != http.StatusNoContent {
+		t.Fatalf("delete list: %d %v", status, body)
+	}
+	if status, body := s.call(http.MethodDelete, "/lists/"+list, ""); status < 400 {
+		t.Fatalf("deleting the same list twice reported success: %d %v", status, body)
 	}
 }
 
@@ -138,7 +146,10 @@ func TestT2SliceAlias(t *testing.T) {
 	list := s.list("Home")
 	created := []string{s.titled(list, "zulu"), s.titled(list, "alpha"), s.titled(list, "mike")}
 
-	s.call(http.MethodGet, "/tasks?sort=title", "")
+	_, page := s.call(http.MethodGet, "/tasks?sort=title", "")
+	if titles := field(t, filled(t, page), "title"); !slices.Equal(titles, []string{"alpha", "mike", "zulu"}) {
+		t.Fatalf("sorted page is %v", titles)
+	}
 
 	_, task := s.call(http.MethodGet, "/tasks/"+created[0], "")
 	if title := text(t, task, "title"); title != "zulu" {

@@ -34,4 +34,11 @@ if err := h.store.DeleteList(list.ID); err != nil {
 }
 ```
 
+The test asserts that the delete is reported as a failure, and that deleting the same
+list twice fails the second time. It deliberately does not pin the exact status: with
+[t2-errors-is](t2-errors-is.md) planted the very same endpoint answers 500, and every bug
+has to fail its own test only. The 404 mapping of a wrapped not-found belongs to that bug
+and is pinned by `TestT2ErrorsIs`; fixing both is what makes
+`DELETE /lists/{unknown}` answer 404.
+
 The spec sentence it breaks: deleting a list that does not exist is 404.

@@ -11,7 +11,7 @@ exposes each of them.
 
 | bug | class |
 | --- | --- |
-| [t1-range-copy](t1-range-copy.md) | range over values mutates a copy |
+| [t1-row-copy](t1-row-copy.md) | a copy of the stored row is mutated |
 | [t1-slice-bounds](t1-slice-bounds.md) | missing bounds check |
 | [t1-atoi-ignored](t1-atoi-ignored.md) | discarded conversion error |
 | [t1-nil-map](t1-nil-map.md) | write to a nil map |

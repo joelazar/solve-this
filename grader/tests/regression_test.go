@@ -2,6 +2,7 @@ package tests
 
 import (
 	"encoding/csv"
+	"fmt"
 	"net/http"
 	"slices"
 	"strings"
@@ -56,11 +57,76 @@ func TestRegressionValidation(t *testing.T) {
 		`{"title":"   "}`,
 		`{"title":"one","priority":"urgent"}`,
 		`{"title":"one","due":"tomorrow"}`,
+		`{"title":"one","tags":[""]}`,
+		`{"title":"one","tags":["   "]}`,
+		`{"title":"one","tags":["tag:"]}`,
+		`{"title":"one","tags":["groceries","  "]}`,
+		`{"title":"one","tags":["` + strings.Repeat("x", 41) + `"]}`,
 	} {
 		status, response := s.call(http.MethodPost, "/lists/"+list+"/tasks", body)
 		if status != http.StatusBadRequest {
 			t.Errorf("%s: %d %v", body, status, response)
 		}
+	}
+
+	id := s.titled(list, "one")
+	if status, response := s.call(http.MethodPatch, "/tasks/"+id, `{"tags":["tag:"]}`); status != http.StatusBadRequest {
+		t.Errorf("patching an empty tag: %d %v", status, response)
+	}
+}
+
+func TestRegressionQueryParams(t *testing.T) {
+	s := start(t)
+	list := s.list("Home")
+	s.titled(list, "one")
+
+	for _, query := range []string{"done=1", "done=0", "done=t", "done=TRUE", "done=yes", "page=abc", "page=0", "page=-1"} {
+		status, body := s.call(http.MethodGet, "/tasks?"+query, "")
+		if status != http.StatusBadRequest {
+			t.Errorf("%s: %d %v", query, status, body)
+		}
+	}
+	for _, query := range []string{"done=true", "done=false", "page=1", "per_page=100"} {
+		status, body := s.call(http.MethodGet, "/tasks?"+query, "")
+		if status != http.StatusOK {
+			t.Errorf("%s: %d %v", query, status, body)
+		}
+	}
+}
+
+func TestRegressionBulkResponse(t *testing.T) {
+	s := start(t)
+	list := s.list("Home")
+	first := s.titled(list, "one")
+	second := s.titled(list, "two")
+
+	status, body := s.call(http.MethodPost, "/tasks/bulk/complete", fmt.Sprintf(`{"ids":[%q,%q]}`, second, first))
+	if status != http.StatusOK {
+		t.Fatalf("bulk complete: %d %v", status, body)
+	}
+	if completed := number(t, body, "completed"); completed != 2 {
+		t.Errorf("completed is %d", completed)
+	}
+	if ids := field(t, filled(t, body), "id"); !slices.Equal(ids, []string{second, first}) {
+		t.Errorf("items are %v, want the ids in the order given", ids)
+	}
+}
+
+func TestRegressionBulkAtomic(t *testing.T) {
+	s := start(t)
+	list := s.list("Home")
+	id := s.titled(list, "one")
+
+	status, body := s.call(http.MethodPost, "/tasks/bulk/complete", fmt.Sprintf(`{"ids":[%q,"task_9999"]}`, id))
+	if status < 400 {
+		t.Fatalf("bulk complete with an unknown id reported success: %d %v", status, body)
+	}
+	_, task := s.call(http.MethodGet, "/tasks/"+id, "")
+	if boolean(t, task, "done") {
+		t.Fatal("a failed bulk complete modified a task")
+	}
+	if status, body := s.call(http.MethodPost, "/tasks/bulk/complete", `{"ids":[]}`); status != http.StatusBadRequest {
+		t.Fatalf("empty ids: %d %v", status, body)
 	}
 }
 
@@ -89,8 +155,14 @@ func TestRegressionTagRemoval(t *testing.T) {
 	if tags := stringList(t, task, "tags"); len(tags) != 0 {
 		t.Fatalf("tags are %v", tags)
 	}
-	if status, _ := s.call(http.MethodDelete, "/tasks/"+id+"/tags/home", ""); status != http.StatusNotFound {
-		t.Fatalf("removing a missing tag: %d", status)
+	touched := text(t, task, "updated_at")
+
+	if status, body := s.call(http.MethodDelete, "/tasks/"+id+"/tags/home", ""); status < 400 {
+		t.Fatalf("removing a missing tag reported success: %d %v", status, body)
+	}
+	_, task = s.call(http.MethodGet, "/tasks/"+id, "")
+	if now := text(t, task, "updated_at"); now != touched {
+		t.Fatalf("a failed tag removal moved updated_at from %s to %s", touched, now)
 	}
 }
 
