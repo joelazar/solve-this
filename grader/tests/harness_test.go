@@ -161,7 +161,7 @@ func (s *server) raceReport(symbol string) bool {
 	return strings.Contains(log, "WARNING: DATA RACE") && strings.Contains(log, symbol)
 }
 
-func (s *server) raw(method, path, body string) (int, []byte) {
+func (s *server) send(method, path, body string) (*http.Response, []byte) {
 	s.t.Helper()
 	var reader io.Reader
 	if body != "" {
@@ -180,7 +180,19 @@ func (s *server) raw(method, path, body string) (int, []byte) {
 	if err != nil {
 		s.t.Fatal(err)
 	}
+	return resp, payload
+}
+
+func (s *server) raw(method, path, body string) (int, []byte) {
+	s.t.Helper()
+	resp, payload := s.send(method, path, body)
 	return resp.StatusCode, payload
+}
+
+func (s *server) header(method, path, key string) string {
+	s.t.Helper()
+	resp, _ := s.send(method, path, "")
+	return resp.Header.Get(key)
 }
 
 func (s *server) call(method, path, body string) (int, map[string]any) {
@@ -234,6 +246,32 @@ func number(t *testing.T, body map[string]any, key string) int {
 		t.Fatalf("%q missing or not a number in %v", key, body)
 	}
 	return int(value)
+}
+
+func nested(t *testing.T, body map[string]any, key string) map[string]any {
+	t.Helper()
+	value, ok := body[key].(map[string]any)
+	if !ok {
+		t.Fatalf("%q missing or not an object in %v", key, body)
+	}
+	return value
+}
+
+func ranking(t *testing.T, body map[string]any, key string) []string {
+	t.Helper()
+	raw, ok := body[key].([]any)
+	if !ok {
+		t.Fatalf("%q missing or not an array in %v", key, body)
+	}
+	out := make([]string, 0, len(raw))
+	for _, entry := range raw {
+		row, ok := entry.(map[string]any)
+		if !ok {
+			t.Fatalf("%q holds a non object: %v", key, entry)
+		}
+		out = append(out, fmt.Sprintf("%s=%d", text(t, row, "tag"), number(t, row, "count")))
+	}
+	return out
 }
 
 func boolean(t *testing.T, body map[string]any, key string) bool {

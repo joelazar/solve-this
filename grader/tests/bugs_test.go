@@ -40,6 +40,9 @@ func TestT1SliceBounds(t *testing.T) {
 	if rows := items(t, body); len(rows) != 0 {
 		t.Fatalf("expected no items, got %d", len(rows))
 	}
+	if total := number(t, body, "total"); total != 2 {
+		t.Fatalf("total on a page past the end is %d", total)
+	}
 }
 
 func TestT1AtoiIgnored(t *testing.T) {
@@ -58,14 +61,15 @@ func TestT1NilMap(t *testing.T) {
 	s := start(t)
 	list := s.list("Home")
 	s.task(list, `{"title":"one","tags":["home","errand"]}`)
+	s.task(list, `{"title":"two","tags":["home"]}`)
+	s.task(list, `{"title":"three","tags":["zzz","errand"]}`)
 
 	status, body := s.call(http.MethodGet, "/stats", "")
 	if status != http.StatusOK {
 		t.Fatalf("stats: %d %v", status, body)
 	}
-	counts, ok := body["by_tag"].([]any)
-	if !ok || len(counts) != 2 {
-		t.Fatalf("expected two tag counts, got %v", body["by_tag"])
+	if counts := ranking(t, body, "by_tag"); !slices.Equal(counts, []string{"errand=2", "home=2", "zzz=1"}) {
+		t.Fatalf("by_tag is %v, want descending count then ascending tag", counts)
 	}
 }
 
@@ -112,6 +116,13 @@ func TestT2TypedNil(t *testing.T) {
 	}
 	if tags := stringList(t, task, "tags"); len(tags) != 1 {
 		t.Fatalf("expected one tag, got %v", tags)
+	}
+	status, task = s.call(http.MethodPost, "/tasks/"+id+"/tags", `{"tag":" Tag:Home "}`)
+	if status != http.StatusOK {
+		t.Fatalf("adding a tag the task already carries: %d %v", status, task)
+	}
+	if tags := stringList(t, task, "tags"); !slices.Equal(tags, []string{"home"}) {
+		t.Fatalf("tags are %v after re-adding the same tag", tags)
 	}
 }
 
