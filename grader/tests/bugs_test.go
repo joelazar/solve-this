@@ -270,6 +270,10 @@ func TestT3MutexCopy(t *testing.T) {
 	body := fmt.Sprintf(`{"ids":[%s]}`, strings.Join(ids, ","))
 
 	hammer(s, 20, 25, func(worker, i int) {
+		if worker%2 == 0 {
+			s.hit(http.MethodPost, "/lists/"+list+"/tasks", fmt.Sprintf(`{"title":"t%d-%d"}`, worker, i))
+			return
+		}
 		s.hit(http.MethodPost, "/tasks/bulk/complete", body)
 	})
 	if s.raceReport("store.Store.CompleteAll") {

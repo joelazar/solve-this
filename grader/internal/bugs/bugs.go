@@ -356,9 +356,9 @@ func requestID(next http.Handler) http.Handler {
 			Old: `func (s *Store) Tasks() []domain.Task {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	tasks := make([]domain.Task, len(s.tasks.rows))`,
+`,
 			New: `func (s *Store) Tasks() []domain.Task {
-	tasks := make([]domain.Task, len(s.tasks.rows))`,
+`,
 		}},
 	},
 	{

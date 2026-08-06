@@ -39,6 +39,7 @@ func main() {
 	for _, bug := range bugs.All {
 		failures += check(*grader, *src, revision, work, bug.ID, []bugs.Bug{bug})
 	}
+	failures += check(*grader, *src, revision, work, "whole corpus", bugs.All)
 	if failures > 0 {
 		fmt.Printf("\n%d variants behaved unexpectedly\n", failures)
 		os.Exit(1)
