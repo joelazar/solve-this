@@ -17,3 +17,5 @@ Rules:
 When you are done, list all {{.N}} bugs, one line each: what was wrong
 and where. A bug is one root cause: if a single fix resolves several
 symptoms, list it once and name those symptoms on the same line.
+Distinct defects count separately, even when they sit in the same
+function or are fixed by the same edit.

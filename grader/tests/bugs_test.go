@@ -247,16 +247,17 @@ func TestT3RaceRequestID(t *testing.T) {
 func TestT3RaceTasks(t *testing.T) {
 	s := startRace(t)
 	list := s.list("Home")
+	id := s.titled(list, "one")
 
 	hammer(s, 20, 25, func(worker, i int) {
 		if worker%2 == 0 {
-			s.hit(http.MethodGet, "/tasks", "")
+			s.hit(http.MethodGet, "/tasks/"+id, "")
 			return
 		}
 		s.hit(http.MethodPost, "/lists/"+list+"/tasks", fmt.Sprintf(`{"title":"t%d-%d"}`, worker, i))
 	})
-	if s.raceReport("store.(*Store).Tasks") {
-		t.Fatal("data race reading tasks without the lock")
+	if s.raceReport("store.(*Store).Task()") {
+		t.Fatal("data race reading a task without the lock")
 	}
 }
 

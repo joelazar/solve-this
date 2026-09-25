@@ -348,16 +348,16 @@ func requestID(next http.Handler) http.Handler {
 		ID:      "t3-race-tasks",
 		Tier:    3,
 		Class:   "shared state read without the lock",
-		Spec:    "GET /tasks returns a consistent snapshot while other requests mutate the store",
-		Symptom: "Under load, GET /tasks sometimes returns corrupted results or crashes.",
+		Spec:    "GET /tasks/{id} returns a consistent task while other requests mutate the store",
+		Symptom: "Under load, GET /tasks/{id} sometimes returns the wrong task or crashes.",
 		Test:    "TestT3RaceTasks",
 		Edits: []Edit{{
 			File: "internal/store/store.go",
-			Old: `func (s *Store) Tasks() []domain.Task {
+			Old: `func (s *Store) Task(id string) (domain.Task, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 `,
-			New: `func (s *Store) Tasks() []domain.Task {
+			New: `func (s *Store) Task(id string) (domain.Task, error) {
 `,
 		}},
 	},
