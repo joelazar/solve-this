@@ -84,7 +84,7 @@ func (h *Handler) exportCSV(w http.ResponseWriter, r *http.Request) {
 	for _, task := range h.store.Tasks() {
 		due := ""
 		if task.Due != nil {
-			due = task.Due.Format(timeFormat)
+			due = task.Due.Local().Format(timeFormat)
 		}
 		writer.Write([]string{
 			task.ID,

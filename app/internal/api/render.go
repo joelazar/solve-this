@@ -50,7 +50,7 @@ func taskToDTO(task domain.Task) taskDTO {
 		UpdatedAt: task.UpdatedAt.Format(timeFormat),
 	}
 	if task.Due != nil {
-		due := task.Due.Format(timeFormat)
+		due := task.Due.Local().Format(timeFormat)
 		dto.Due = &due
 	}
 	return dto
