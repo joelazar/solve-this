@@ -78,7 +78,8 @@ not exist.
 
 ### `POST /lists/{id}/tasks`
 
-Creates a task in the list. Returns `404` if the list does not exist.
+Creates a task in the list. Returns `404` if the list does not exist. The body is
+validated first, so an invalid body is `400` even when the list is unknown.
 
 ```json
 {
@@ -120,7 +121,8 @@ fully determined.
 - `created` orders by creation time, oldest first. This is the default order.
 - `title` orders case-insensitively.
 - `priority` orders `high`, then `medium`, then `low`.
-- `due` orders earliest first; tasks without a due date come last.
+- `due` orders earliest first; tasks without a due date come last. `-due` reverses this, so
+  tasks without a due date come first.
 
 Sorting affects the response only. The stored order of tasks is their creation order and no
 request can change it.
