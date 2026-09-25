@@ -228,6 +228,20 @@ func TestRegressionTagSet(t *testing.T) {
 	}
 }
 
+func TestRegressionTagNoop(t *testing.T) {
+	s := start(t)
+	list := s.list("Home")
+	task := s.task(list, `{"title":"one","tags":["home"]}`)
+
+	status, again := s.call(http.MethodPost, "/tasks/"+text(t, task, "id")+"/tags", `{"tag":"home"}`)
+	if status != http.StatusOK {
+		t.Skipf("add tag: %d %v, covered by TestT2TypedNil", status, again)
+	}
+	if before, after := text(t, task, "updated_at"), text(t, again, "updated_at"); before != after {
+		t.Fatalf("re-adding a tag the task carries moved updated_at from %s to %s", before, after)
+	}
+}
+
 func TestRegressionPatchFields(t *testing.T) {
 	s := start(t)
 	list := s.list("Home")

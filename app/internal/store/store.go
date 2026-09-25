@@ -3,6 +3,7 @@ package store
 import (
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -123,6 +124,9 @@ func (s *Store) UpdateTask(id string, mutate func(*domain.Task) error) (domain.T
 	draft := s.tasks.rows[i].Clone()
 	if err := mutate(&draft); err != nil {
 		return domain.Task{}, err
+	}
+	if reflect.DeepEqual(draft, s.tasks.rows[i]) {
+		return draft, nil
 	}
 	draft.Touch()
 	s.tasks.rows[i] = draft
