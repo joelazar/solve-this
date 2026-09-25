@@ -14,4 +14,5 @@ Rules:
 - The project must still build with: go build ./...
 
 When you are done, list every bug you fixed, one line each: what was
-wrong and where.
+wrong and where. A bug is one root cause: if a single fix resolves
+several symptoms, list it once and name those symptoms on the same line.
